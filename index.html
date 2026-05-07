@@ -511,7 +511,7 @@
   @media (max-width: 768px) {
     .section { padding: 60px 24px; min-height: auto; }
     #sidebar { transform: translateX(-100%); }
-    #sidebar.open { transform: none; }
+    #sidebar.mobile-open { transform: translateX(0) !important; }
     #main { margin-left: 0 !important; }
     #toggle-btn { left: 16px !important; }
     .hero-stats { flex-direction: column; gap: 24px; }
@@ -960,13 +960,22 @@ sections.forEach(s => {
   navContainer.appendChild(a);
 });
 
+const isMobile = () => window.innerWidth <= 768;
 let sidebarOpen = true;
+
 function toggleSidebar() {
-  sidebarOpen = !sidebarOpen;
-  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
-  document.getElementById('main').classList.toggle('full', !sidebarOpen);
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
   const btn = document.getElementById('toggle-btn');
-  btn.classList.toggle('shifted', sidebarOpen);
+  if (isMobile()) {
+    sidebarOpen = !sidebarOpen;
+    sidebar.classList.toggle('mobile-open', sidebarOpen);
+  } else {
+    sidebarOpen = !sidebarOpen;
+    sidebar.classList.toggle('collapsed', !sidebarOpen);
+    main.classList.toggle('full', !sidebarOpen);
+    btn.classList.toggle('shifted', sidebarOpen);
+  }
 }
 
 // Intersection observer for scroll animations
