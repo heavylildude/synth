@@ -1004,6 +1004,17 @@ window.addEventListener('scroll', () => {
   document.getElementById('progress').style.width = pct + '%';
 });
 
+// Close sidebar on outside tap (mobile)
+document.addEventListener('click', e => {
+  if (!isMobile()) return;
+  const sidebar = document.getElementById('sidebar');
+  const btn = document.getElementById('toggle-btn');
+  if (sidebarOpen && !sidebar.contains(e.target) && !btn.contains(e.target)) {
+    sidebarOpen = false;
+    sidebar.classList.remove('mobile-open');
+  }
+});
+
 // Init toggle position
 document.getElementById('toggle-btn').classList.add('shifted');
 </script>
