@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synth — Digital Staff Infrastructure</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #282a36;
+    --bg2: #1e1f2b;
+    --bg3: #21222c;
+    --surface: #2d2f3e;
+    --border: #44475a;
+    --purple: #bd93f9;
+    --pink: #ff79c6;
+    --cyan: #8be9fd;
+    --green: #50fa7b;
+    --yellow: #f1fa8c;
+    --orange: #ffb86c;
+    --red: #ff5555;
+    --fg: #f8f8f2;
+    --fg2: #cdd6f4;
+    --fg3: #8892b0;
+    --sidebar-w: 280px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--bg2);
+    color: var(--fg);
+    overflow-x: hidden;
+  }
+
+  /* SIDEBAR */
+  #sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    width: var(--sidebar-w);
+    height: 100vh;
+    background: var(--bg3);
+    border-right: 1px solid var(--border);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+    overflow: hidden;
+  }
+  #sidebar.collapsed { transform: translateX(calc(-1 * var(--sidebar-w))); }
+
+  .sidebar-header {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .sidebar-logo {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--purple);
+  }
+  .sidebar-sub {
+    font-size: 11px;
+    color: var(--fg3);
+    margin-top: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .nav-section {
+    padding: 0 16px 8px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--fg3);
+    font-weight: 500;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 20px;
+    font-size: 13px;
+    color: var(--fg3);
+    cursor: pointer;
+    border-radius: 0;
+    transition: all 0.2s;
+    border-left: 2px solid transparent;
+    text-decoration: none;
+  }
+  .nav-item:hover { color: var(--fg); background: rgba(189,147,249,0.06); }
+  .nav-item.active { color: var(--purple); border-left-color: var(--purple); background: rgba(189,147,249,0.08); }
+  .nav-num {
+    font-size: 10px;
+    color: var(--fg3);
+    min-width: 18px;
+    font-weight: 500;
+  }
+
+  /* TOGGLE BUTTON */
+  #toggle-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 200;
+    width: 40px; height: 40px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--fg3);
+    font-size: 18px;
+  }
+  #toggle-btn:hover { border-color: var(--purple); color: var(--purple); }
+  #toggle-btn.shifted { left: calc(var(--sidebar-w) + 20px); }
+
+  /* MAIN */
+  #main {
+    margin-left: var(--sidebar-w);
+    transition: margin-left 0.4s cubic-bezier(0.4,0,0.2,1);
+    min-height: 100vh;
+  }
+  #main.full { margin-left: 0; }
+
+  /* SECTIONS */
+  .section {
+    min-height: 100vh;
+    padding: 80px 80px 80px 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+    transition: opacity 0.6s, transform 0.6s;
+  }
+  .section.hidden-section { opacity: 0; transform: translateY(40px); }
+  .section.visible-section { opacity: 1; transform: translateY(0); }
+
+  /* HERO */
+  #section-0 {
+    background: var(--bg2);
+    min-height: 100vh;
+  }
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--purple);
+    margin-bottom: 32px;
+    font-weight: 500;
+  }
+  .hero-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+  .hero-title {
+    font-size: clamp(52px, 7vw, 96px);
+    font-weight: 700;
+    line-height: 1.0;
+    letter-spacing: -3px;
+    margin-bottom: 24px;
+    color: var(--fg);
+  }
+  .hero-title .accent { color: var(--purple); }
+  .hero-subtitle {
+    font-size: 20px;
+    color: var(--fg3);
+    max-width: 560px;
+    line-height: 1.6;
+    margin-bottom: 48px;
+    font-weight: 400;
+  }
+  .hero-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 64px;
+  }
+  .chip {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-size: 13px;
+    color: var(--fg2);
+    font-weight: 400;
+  }
+  .hero-stats {
+    display: flex;
+    gap: 48px;
+    padding-top: 48px;
+    border-top: 1px solid var(--border);
+  }
+  .stat-item {}
+  .stat-num {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--fg);
+  }
+  .stat-num span { color: var(--purple); }
+  .stat-label { font-size: 13px; color: var(--fg3); margin-top: 4px; }
+
+  /* SECTION HEADERS */
+  .s-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--purple);
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+  .s-title {
+    font-size: clamp(36px, 4vw, 56px);
+    font-weight: 700;
+    letter-spacing: -2px;
+    line-height: 1.1;
+    color: var(--fg);
+    margin-bottom: 20px;
+  }
+  .s-body {
+    font-size: 17px;
+    color: var(--fg3);
+    max-width: 640px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+  }
+
+  /* CARDS */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 40px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .card:hover { border-color: var(--purple); transform: translateY(-2px); }
+  .card-icon {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+    font-size: 18px;
+    background: rgba(189,147,249,0.12);
+    color: var(--purple);
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+  .card-body { font-size: 14px; color: var(--fg3); line-height: 1.6; }
+
+  /* PROBLEM ITEMS */
+  .problem-list { display: flex; flex-direction: column; gap: 16px; margin-top: 32px; max-width: 720px; }
+  .problem-item {
+    display: flex; gap: 20px; align-items: flex-start;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.2s;
+  }
+  .problem-item:hover { border-color: var(--pink); }
+  .problem-num {
+    font-size: 12px; font-weight: 700; color: var(--pink);
+    min-width: 28px; margin-top: 2px;
+  }
+  .problem-text h4 { font-size: 15px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+  .problem-text p { font-size: 13px; color: var(--fg3); line-height: 1.6; }
+
+  /* ARCH STACK */
+  .arch-stack { display: flex; flex-direction: column; gap: 0; max-width: 560px; margin-top: 32px; }
+  .arch-layer {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 20px;
+    border: 1px solid var(--border);
+    border-bottom: none;
+    transition: background 0.2s;
+  }
+  .arch-layer:first-child { border-radius: 12px 12px 0 0; }
+  .arch-layer:last-child { border-bottom: 1px solid var(--border); border-radius: 0 0 12px 12px; }
+  .arch-layer:hover { background: rgba(189,147,249,0.05); }
+  .arch-arrow { color: var(--purple); font-size: 12px; }
+  .arch-name { font-size: 14px; font-weight: 500; color: var(--fg); }
+  .arch-desc { font-size: 12px; color: var(--fg3); margin-left: auto; }
+
+  /* ROLES */
+  .roles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 32px;
+  }
+  .role-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .role-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent, var(--purple));
+  }
+  .role-card:hover { transform: translateY(-3px); border-color: var(--accent, var(--purple)); }
+  .role-emoji { font-size: 28px; margin-bottom: 14px; }
+  .role-title { font-size: 16px; font-weight: 600; color: var(--fg); margin-bottom: 10px; }
+  .role-duties { list-style: none; }
+  .role-duties li {
+    font-size: 13px; color: var(--fg3); padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .role-duties li:last-child { border-bottom: none; }
+  .role-duties li::before { content: '—'; color: var(--accent, var(--purple)); font-size: 12px; }
+
+  /* COMPARISON TABLE */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 32px;
+    font-size: 14px;
+  }
+  .compare-table th {
+    text-align: left;
+    padding: 14px 20px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--fg3);
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+  .compare-table th:last-child { color: var(--purple); }
+  .compare-table td {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    color: var(--fg3);
+    vertical-align: middle;
+  }
+  .compare-table td:last-child { color: var(--fg); font-weight: 500; }
+  .compare-table tr:hover td { background: rgba(189,147,249,0.04); }
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-green { background: rgba(80,250,123,0.12); color: var(--green); }
+  .badge-red { background: rgba(255,85,85,0.12); color: var(--red); }
+
+  /* PRICING */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-top: 32px;
+  }
+  .plan-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .plan-card.featured {
+    border-color: var(--purple);
+    background: rgba(189,147,249,0.06);
+  }
+  .plan-card:hover { transform: translateY(-3px); }
+  .plan-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--purple);
+    color: var(--bg2);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 100px;
+    letter-spacing: 0.5px;
+  }
+  .plan-name { font-size: 13px; font-weight: 600; color: var(--fg3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+  .plan-price { font-size: 32px; font-weight: 700; letter-spacing: -1px; color: var(--fg); margin-bottom: 4px; }
+  .plan-period { font-size: 12px; color: var(--fg3); margin-bottom: 20px; }
+  .plan-features { list-style: none; }
+  .plan-features li {
+    font-size: 13px; color: var(--fg3); padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .plan-features li:last-child { border-bottom: none; }
+  .plan-features li::before { content: '✓'; color: var(--green); font-size: 12px; }
+
+  /* FLOW */
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 500px;
+    margin-top: 32px;
+    position: relative;
+  }
+  .flow-steps::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--purple), transparent);
+  }
+  .flow-step {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    padding: 16px 0;
+    position: relative;
+  }
+  .flow-num {
+    width: 40px; height: 40px;
+    background: var(--bg3);
+    border: 1px solid var(--purple);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--purple);
+    flex-shrink: 0;
+    z-index: 1;
+  }
+  .flow-content h4 { font-size: 15px; font-weight: 600; color: var(--fg); margin-bottom: 4px; }
+  .flow-content p { font-size: 13px; color: var(--fg3); line-height: 1.6; }
+
+  /* ROADMAP */
+  .roadmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 32px; }
+  .roadmap-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .roadmap-item:hover { border-color: var(--cyan); }
+  .roadmap-phase { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--cyan); font-weight: 600; margin-bottom: 12px; }
+  .roadmap-item h4 { font-size: 15px; font-weight: 600; color: var(--fg); margin-bottom: 10px; }
+  .roadmap-item ul { list-style: none; }
+  .roadmap-item ul li { font-size: 13px; color: var(--fg3); padding: 4px 0; }
+  .roadmap-item ul li::before { content: '→ '; color: var(--cyan); }
+
+  /* VISION CLOSING */
+  .closing-quote {
+    font-size: clamp(28px, 3.5vw, 48px);
+    font-weight: 700;
+    letter-spacing: -1.5px;
+    line-height: 1.2;
+    color: var(--fg);
+    max-width: 800px;
+    margin-bottom: 40px;
+  }
+  .closing-quote em { color: var(--purple); font-style: normal; }
+
+  /* DIVIDER */
+  .section-divider {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 40px;
+  }
+  .divider-line { height: 1px; background: var(--border); flex: 1; }
+  .divider-label { font-size: 11px; color: var(--fg3); letter-spacing: 2px; text-transform: uppercase; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* PROGRESS BAR */
+  #progress {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: var(--purple);
+    z-index: 1000;
+    width: 0%;
+    transition: width 0.1s;
+  }
+
+  @media (max-width: 768px) {
+    .section { padding: 60px 24px; min-height: auto; }
+    #sidebar { transform: translateX(-100%); }
+    #sidebar.open { transform: none; }
+    #main { margin-left: 0 !important; }
+    #toggle-btn { left: 16px !important; }
+    .hero-stats { flex-direction: column; gap: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">Synth</div>
+    <div class="sidebar-sub">Investor Overview · 2024</div>
+  </div>
+  <div class="sidebar-nav" id="nav-links"></div>
+</nav>
+
+<!-- TOGGLE -->
+<button id="toggle-btn" onclick="toggleSidebar()" title="Toggle navigation">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+    <line x1="2" y1="4" x2="14" y2="4"/>
+    <line x1="2" y1="8" x2="14" y2="8"/>
+    <line x1="2" y1="12" x2="14" y2="12"/>
+  </svg>
+</button>
+
+<main id="main">
+
+<!-- 0: HERO -->
+<section class="section" id="section-0">
+  <div class="hero-eyebrow"><span class="hero-dot"></span> Digital Staff Infrastructure</div>
+  <h1 class="hero-title">The Future<br>of Business<br><span class="accent">Operations</span></h1>
+  <p class="hero-subtitle">Synth enables modern businesses to deploy intelligent, specialized digital staff — directly into the operational heart of how they communicate and sell.</p>
+  <div class="hero-chips">
+    <span class="chip">WhatsApp-Native</span>
+    <span class="chip">MSME-Ready</span>
+    <span class="chip">24/7 Operations</span>
+    <span class="chip">AI-Powered</span>
+    <span class="chip">Built for Indonesia</span>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-item">
+      <div class="stat-num">64<span>M+</span></div>
+      <div class="stat-label">MSMEs in Indonesia</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">97<span>%</span></div>
+      <div class="stat-label">WhatsApp penetration</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">24<span>/7</span></div>
+      <div class="stat-label">Always-on operations</div>
+    </div>
+  </div>
+</section>
+
+<!-- 1: VISION -->
+<section class="section hidden-section" id="section-1">
+  <div class="s-label">01 — Vision</div>
+  <h2 class="s-title">Every Business,<br>Fully Staffed.</h2>
+  <p class="s-body">We believe business size should never determine operational quality. Synth gives any business — regardless of headcount or budget — the responsiveness, intelligence, and scalability of a world-class operation.</p>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon">💬</div>
+      <div class="card-title">Conversational-First</div>
+      <div class="card-body">The future of business happens in conversations — not dashboards, not forms.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">⚡</div>
+      <div class="card-title">Persistent Operations</div>
+      <div class="card-body">Synths don't clock out. They maintain context, remember customers, and operate continuously.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🎯</div>
+      <div class="card-title">Operationally Intelligent</div>
+      <div class="card-body">Built not for chit-chat, but for executing real business workflows end-to-end.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">📈</div>
+      <div class="card-title">Infinitely Scalable</div>
+      <div class="card-body">Deploy one Synth or ten. Scale operational capacity without scaling headcount.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 2: THE PROBLEM -->
+<section class="section hidden-section" id="section-2">
+  <div class="s-label">02 — The Problem</div>
+  <h2 class="s-title">The Operational<br>Breaking Point</h2>
+  <p class="s-body">Millions of Indonesian businesses live on WhatsApp — but still run operations manually. The gap between customer expectations and operational reality is widening every day.</p>
+  <div class="problem-list">
+    <div class="problem-item">
+      <div class="problem-num">01</div>
+      <div class="problem-text"><h4>Slow Response Times</h4><p>Customers expect replies in seconds. Every delayed response is a lost sale. Manual operations simply can't keep up.</p></div>
+    </div>
+    <div class="problem-item">
+      <div class="problem-num">02</div>
+      <div class="problem-text"><h4>Infinite Repetition</h4><p>Staff spend hours answering the same questions about pricing, availability, and delivery — every single day.</p></div>
+    </div>
+    <div class="problem-item">
+      <div class="problem-num">03</div>
+      <div class="problem-text"><h4>Operations Die After Hours</h4><p>Human staff go home. Customer conversations don't. Businesses bleed opportunities every night.</p></div>
+    </div>
+    <div class="problem-item">
+      <div class="problem-num">04</div>
+      <div class="problem-text"><h4>Knowledge Lives in People</h4><p>When your best admin leaves, so does institutional knowledge. Scaling becomes impossible without scaling headcount.</p></div>
+    </div>
+    <div class="problem-item">
+      <div class="problem-num">05</div>
+      <div class="problem-text"><h4>Manual Admin Overload</h4><p>Invoices, quotations, confirmations, follow-ups — these are tasks machines should handle, not human attention.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3: WHAT IS SYNTH -->
+<section class="section hidden-section" id="section-3">
+  <div class="s-label">03 — The Product</div>
+  <h2 class="s-title">What is<br>Synth?</h2>
+  <p class="s-body">Synth is not a chatbot platform. It's a digital staff deployment infrastructure — where businesses create, train, and deploy specialized AI staff members directly into their existing operational channels.</p>
+
+  <div style="margin-top: 32px; padding: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 720px;">
+    <div style="font-size: 13px; color: var(--fg3); margin-bottom: 20px; letter-spacing: 1px; text-transform: uppercase;">A Synth is not an AI assistant.</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div>
+        <div style="font-size: 13px; color: var(--red); font-weight: 600; margin-bottom: 12px; letter-spacing: 1px; text-transform: uppercase;">❌ Not This</div>
+        <div style="font-size: 14px; color: var(--fg3); line-height: 2;">Generic AI chatbot<br>Prompt-and-reply machine<br>One-size-fits-all automation<br>Complex enterprise setup<br>Siloed from workflows</div>
+      </div>
+      <div>
+        <div style="font-size: 13px; color: var(--green); font-weight: 600; margin-bottom: 12px; letter-spacing: 1px; text-transform: uppercase;">✓ Synth</div>
+        <div style="font-size: 14px; color: var(--fg2); line-height: 2;">Trained digital staff member<br>Operational workflow engine<br>Role-specialized intelligence<br>Self-service in minutes<br>Embedded in WhatsApp</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4: ARCHITECTURE -->
+<section class="section hidden-section" id="section-4">
+  <div class="s-label">04 — Architecture</div>
+  <h2 class="s-title">The Shell Owns<br>the Intelligence</h2>
+  <p class="s-body">Most AI products rely entirely on the model. Synth flips this. The intelligence lives in the operational system — the model is just one layer of a carefully orchestrated stack.</p>
+  <div class="arch-stack">
+    <div class="arch-layer" style="background: rgba(189,147,249,0.08);">
+      <span style="color: var(--purple); font-size: 12px;">▲</span>
+      <span class="arch-name">Customer Message</span>
+      <span class="arch-desc">Entry point</span>
+    </div>
+    <div class="arch-layer"><span class="arch-arrow">↓</span><span class="arch-name">Conversation Layer</span><span class="arch-desc">Intent & routing</span></div>
+    <div class="arch-layer"><span class="arch-arrow">↓</span><span class="arch-name">Business Knowledge Retrieval</span><span class="arch-desc">RAG / grounding</span></div>
+    <div class="arch-layer"><span class="arch-arrow">↓</span><span class="arch-name">Workflow & Tool Systems</span><span class="arch-desc">Actions & integrations</span></div>
+    <div class="arch-layer"><span class="arch-arrow">↓</span><span class="arch-name">Memory & Context</span><span class="arch-desc">Persistent awareness</span></div>
+    <div class="arch-layer"><span class="arch-arrow">↓</span><span class="arch-name">Document Generation</span><span class="arch-desc">Invoices, quotes</span></div>
+    <div class="arch-layer"><span class="arch-arrow">↓</span><span class="arch-name">Human Escalation</span><span class="arch-desc">Override logic</span></div>
+    <div class="arch-layer" style="background: rgba(80,250,123,0.06);">
+      <span style="color: var(--green); font-size: 12px;">●</span>
+      <span class="arch-name">Final Response</span>
+      <span class="arch-desc">Grounded, reliable</span>
+    </div>
+  </div>
+</section>
+
+<!-- 5: SYNTH ROLES -->
+<section class="section hidden-section" id="section-5">
+  <div class="s-label">05 — Roles & Types</div>
+  <h2 class="s-title">Your Digital<br>Staff Roster</h2>
+  <p class="s-body">Each Synth is purpose-built for a specific operational function. Not a generalist pretending. A genuine specialist, trained on your business.</p>
+  <div class="roles-grid">
+    <div class="role-card" style="--accent: #bd93f9;">
+      <div class="role-emoji">💼</div>
+      <div class="role-title">Sales Synth</div>
+      <ul class="role-duties">
+        <li>Product recommendations</li>
+        <li>Lead qualification</li>
+        <li>Upselling & cross-selling</li>
+        <li>Purchase guidance</li>
+        <li>Automated follow-up</li>
+      </ul>
+    </div>
+    <div class="role-card" style="--accent: #8be9fd;">
+      <div class="role-emoji">🎧</div>
+      <div class="role-title">Support Synth</div>
+      <ul class="role-duties">
+        <li>Customer inquiries</li>
+        <li>Order status updates</li>
+        <li>Troubleshooting</li>
+        <li>FAQ handling</li>
+        <li>Service explanations</li>
+      </ul>
+    </div>
+    <div class="role-card" style="--accent: #50fa7b;">
+      <div class="role-emoji">💰</div>
+      <div class="role-title">Finance Synth</div>
+      <ul class="role-duties">
+        <li>Invoice generation</li>
+        <li>Quotation creation</li>
+        <li>Payment reminders</li>
+        <li>Receipt handling</li>
+        <li>Financial summaries</li>
+      </ul>
+    </div>
+    <div class="role-card" style="--accent: #ffb86c;">
+      <div class="role-emoji">📅</div>
+      <div class="role-title">Booking Synth</div>
+      <ul class="role-duties">
+        <li>Reservations & scheduling</li>
+        <li>Appointment management</li>
+        <li>Confirmation handling</li>
+        <li>Rescheduling flows</li>
+        <li>Reminder automation</li>
+      </ul>
+    </div>
+    <div class="role-card" style="--accent: #ff79c6;">
+      <div class="role-emoji">🌟</div>
+      <div class="role-title">Concierge Synth</div>
+      <ul class="role-duties">
+        <li>VIP customer handling</li>
+        <li>Personalized onboarding</li>
+        <li>Information guidance</li>
+        <li>Relationship continuity</li>
+        <li>Experience curation</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 6: HOW IT WORKS -->
+<section class="section hidden-section" id="section-6">
+  <div class="s-label">06 — How It Works</div>
+  <h2 class="s-title">Deployed in<br>Minutes, Not Months</h2>
+  <p class="s-body">No engineers required. No complex integrations. Synth is designed for business owners — not developers.</p>
+  <div class="flow-steps">
+    <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><h4>Create Your Synth</h4><p>Name it, assign it a role, give it a personality that fits your brand.</p></div></div>
+    <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><h4>Upload Your Knowledge</h4><p>Feed it your product catalog, SOPs, FAQs, pricing — anything your best staff would know.</p></div></div>
+    <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><h4>Test in Sandbox</h4><p>Simulate real conversations before going live. See your Synth handle edge cases in real-time.</p></div></div>
+    <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><h4>Connect WhatsApp</h4><p>Link your business number. Your Synth is now live — handling customers while you sleep.</p></div></div>
+    <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><h4>Monitor & Optimize</h4><p>Review conversations, track performance, refine training. Gets smarter over time.</p></div></div>
+  </div>
+</section>
+
+<!-- 7: WHATSAPP STRATEGY -->
+<section class="section hidden-section" id="section-7">
+  <div class="s-label">07 — Distribution Strategy</div>
+  <h2 class="s-title">WhatsApp is<br>the Storefront</h2>
+  <p class="s-body">In Indonesia, WhatsApp is not a messaging app — it's the entire commerce stack. Customer support, sales, orders, payments, logistics — all happen there. Synth doesn't ask businesses to change. We go where they already are.</p>
+  <div class="card-grid" style="max-width: 800px;">
+    <div class="card">
+      <div class="card-icon">📱</div>
+      <div class="card-title">Zero Behavior Change</div>
+      <div class="card-body">Customers keep using WhatsApp as normal. Synth operates invisibly inside the existing channel.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🔌</div>
+      <div class="card-title">Instant Integration</div>
+      <div class="card-body">Connect in under 5 minutes using official WhatsApp Business API. No custom dev required.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon">🌐</div>
+      <div class="card-title">Channel Expansion Roadmap</div>
+      <div class="card-body">Instagram DM, Telegram, Website Chat, Voice — rolling out post-launch in order of market demand.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 8: COMPETITIVE -->
+<section class="section hidden-section" id="section-8">
+  <div class="s-label">08 — Competitive Landscape</div>
+  <h2 class="s-title">Built Different,<br>By Design</h2>
+  <p class="s-body">Existing solutions are either too generic, too expensive, or too complex for the market that needs them most. Synth is purpose-built for Indonesian MSMEs.</p>
+  <table class="compare-table">
+    <thead>
+      <tr><th>Capability</th><th>Traditional Platforms</th><th>Synth</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Product Philosophy</td><td>Generic chatbots</td><td><span class="badge badge-green">Operational digital staff</span></td></tr>
+      <tr><td>Onboarding</td><td>Enterprise sales cycle</td><td><span class="badge badge-green">Self-service, same day</span></td></tr>
+      <tr><td>First Principles</td><td>CRM-first complexity</td><td><span class="badge badge-green">Conversation-first simplicity</span></td></tr>
+      <tr><td>AI Behavior</td><td>Generic, hallucination-prone</td><td><span class="badge badge-green">Grounded & role-specialized</span></td></tr>
+      <tr><td>Target Market</td><td>Enterprise only</td><td><span class="badge badge-green">MSME-native</span></td></tr>
+      <tr><td>Memory & Context</td><td>Session-limited</td><td><span class="badge badge-green">Persistent operational memory</span></td></tr>
+      <tr><td>Human Collaboration</td><td>Binary (bot or human)</td><td><span class="badge badge-green">Hybrid — seamless handoff</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 9: BUSINESS MODEL -->
+<section class="section hidden-section" id="section-9">
+  <div class="s-label">09 — Business Model</div>
+  <h2 class="s-title">SaaS Pricing<br>That Scales With You</h2>
+  <p class="s-body">Simple, transparent subscription tiers — from first-time experimenters to full operational deployments. Free access to build trust, paid tiers to grow with it.</p>
+  <div class="pricing-grid">
+    <div class="plan-card">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">Rp 0</div>
+      <div class="plan-period">Forever</div>
+      <ul class="plan-features">
+        <li>Sandbox access</li>
+        <li>Limited conversations</li>
+        <li>Basic training</li>
+        <li>No live deployment</li>
+      </ul>
+    </div>
+    <div class="plan-card">
+      <div class="plan-name">Starter</div>
+      <div class="plan-price">Rp 99K</div>
+      <div class="plan-period">per month</div>
+      <ul class="plan-features">
+        <li>Live WhatsApp connection</li>
+        <li>1 Synth deployment</li>
+        <li>Basic document generation</li>
+        <li>Standard support</li>
+      </ul>
+    </div>
+    <div class="plan-card featured">
+      <div class="plan-badge">Most Popular</div>
+      <div class="plan-name">Growth</div>
+      <div class="plan-price">Rp 299K</div>
+      <div class="plan-period">per month</div>
+      <ul class="plan-features">
+        <li>Higher operational limits</li>
+        <li>Advanced memory systems</li>
+        <li>Operational analytics</li>
+        <li>Multiple Synth roles</li>
+        <li>Priority support</li>
+      </ul>
+    </div>
+    <div class="plan-card">
+      <div class="plan-name">Business</div>
+      <div class="plan-price">Rp 999K</div>
+      <div class="plan-period">per month</div>
+      <ul class="plan-features">
+        <li>Multi-Synth infrastructure</li>
+        <li>Team collaboration</li>
+        <li>Advanced workflows</li>
+        <li>Custom integrations</li>
+        <li>Dedicated support</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 10: MARKET -->
+<section class="section hidden-section" id="section-10">
+  <div class="s-label">10 — Market Opportunity</div>
+  <h2 class="s-title">A Market Ready<br>to Be Captured</h2>
+  <p class="s-body">Indonesia is one of the largest and fastest-growing digital economies in Southeast Asia. AI adoption is early, WhatsApp penetration is near-total, and operational pain is universal.</p>
+  <div class="card-grid">
+    <div class="card">
+      <div style="font-size: 40px; font-weight: 700; letter-spacing: -2px; color: var(--purple);">64M+</div>
+      <div class="card-title">MSMEs in Indonesia</div>
+      <div class="card-body">The backbone of the economy — and almost none have access to quality operational automation.</div>
+    </div>
+    <div class="card">
+      <div style="font-size: 40px; font-weight: 700; letter-spacing: -2px; color: var(--cyan);">97%</div>
+      <div class="card-title">WhatsApp Penetration</div>
+      <div class="card-body">Near-universal adoption means zero distribution friction. Your customers are already there.</div>
+    </div>
+    <div class="card">
+      <div style="font-size: 40px; font-weight: 700; letter-spacing: -2px; color: var(--green);">Early</div>
+      <div class="card-title">AI Adoption Curve</div>
+      <div class="card-body">We are at the inflection point — before incumbents get here. First-mover advantage is real and available.</div>
+    </div>
+    <div class="card">
+      <div style="font-size: 40px; font-weight: 700; letter-spacing: -2px; color: var(--orange);">$50B+</div>
+      <div class="card-title">SEA Digital Economy</div>
+      <div class="card-body">A rapidly expanding market with structural demand for affordable, scalable operational infrastructure.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 11: ROADMAP -->
+<section class="section hidden-section" id="section-11">
+  <div class="s-label">11 — Expansion Roadmap</div>
+  <h2 class="s-title">What Gets Built<br>and When</h2>
+  <p class="s-body">We launch focused. We expand deliberately. Each phase builds on proven product-market fit from the phase before it.</p>
+  <div class="roadmap">
+    <div class="roadmap-item">
+      <div class="roadmap-phase">Phase 1 — Launch</div>
+      <h4>WhatsApp Operations</h4>
+      <ul><li>Core Synth deployment</li><li>Knowledge training</li><li>Sandbox system</li><li>Basic analytics</li></ul>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-phase">Phase 2 — Expand</div>
+      <h4>Multi-Channel</h4>
+      <ul><li>Instagram DM</li><li>Telegram integration</li><li>Website live chat</li><li>Voice capabilities</li></ul>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-phase">Phase 3 — Deepen</div>
+      <h4>Operational Suite</h4>
+      <ul><li>Payment integration</li><li>CRM sync</li><li>Team collaboration</li><li>Advanced workflows</li></ul>
+    </div>
+    <div class="roadmap-item">
+      <div class="roadmap-phase">Phase 4 — Scale</div>
+      <h4>Platform Ecosystem</h4>
+      <ul><li>Multi-Synth orgs</li><li>API access</li><li>Partner integrations</li><li>SEA expansion</li></ul>
+    </div>
+  </div>
+</section>
+
+<!-- 12: CLOSING -->
+<section class="section hidden-section" id="section-12">
+  <div class="s-label">12 — The Vision</div>
+  <div class="closing-quote">
+    "Business communication is becoming<br>continuous, conversational, and <em>always-on</em>.<br>Synth is the operational layer<br>that makes this possible."
+  </div>
+  <p class="s-body">Not chatbots. Not complex enterprise systems.<br>Practical, persistent, operational digital staff — built for the businesses that need it most.</p>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px;">
+    <div style="padding: 12px 24px; background: var(--purple); color: var(--bg2); border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer;">Request Access</div>
+    <div style="padding: 12px 24px; background: transparent; border: 1px solid var(--border); color: var(--fg); border-radius: 10px; font-weight: 500; font-size: 15px; cursor: pointer;">View Demo</div>
+  </div>
+  <div style="margin-top: 64px; padding-top: 32px; border-top: 1px solid var(--border); font-size: 13px; color: var(--fg3);">
+    Built by HLD · Synth v1.0 · For Investor Review
+  </div>
+</section>
+
+</main>
+
+<script>
+const sections = [
+  { id: 0, label: "Overview" },
+  { id: 1, label: "Vision" },
+  { id: 2, label: "The Problem" },
+  { id: 3, label: "What is Synth" },
+  { id: 4, label: "Architecture" },
+  { id: 5, label: "Roles & Types" },
+  { id: 6, label: "How It Works" },
+  { id: 7, label: "WhatsApp Strategy" },
+  { id: 8, label: "Competitive" },
+  { id: 9, label: "Business Model" },
+  { id: 10, label: "Market Opportunity" },
+  { id: 11, label: "Roadmap" },
+  { id: 12, label: "Vision & Closing" },
+];
+
+const navContainer = document.getElementById('nav-links');
+sections.forEach(s => {
+  const a = document.createElement('a');
+  a.className = 'nav-item';
+  a.href = `#section-${s.id}`;
+  a.dataset.id = s.id;
+  a.innerHTML = `<span class="nav-num">${String(s.id).padStart(2,'0')}</span>${s.label}`;
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById(`section-${s.id}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  navContainer.appendChild(a);
+});
+
+let sidebarOpen = true;
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen);
+  document.getElementById('main').classList.toggle('full', !sidebarOpen);
+  const btn = document.getElementById('toggle-btn');
+  btn.classList.toggle('shifted', sidebarOpen);
+}
+
+// Intersection observer for scroll animations
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.remove('hidden-section');
+      e.target.classList.add('visible-section');
+      const id = parseInt(e.target.id.split('-')[1]);
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      const activeNav = document.querySelector(`.nav-item[data-id="${id}"]`);
+      if (activeNav) {
+        activeNav.classList.add('active');
+        activeNav.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  });
+}, { threshold: 0.2 });
+
+document.querySelectorAll('.section').forEach(s => observer.observe(s));
+
+// Progress bar
+window.addEventListener('scroll', () => {
+  const total = document.body.scrollHeight - window.innerHeight;
+  const pct = (window.scrollY / total) * 100;
+  document.getElementById('progress').style.width = pct + '%';
+});
+
+// Init toggle position
+document.getElementById('toggle-btn').classList.add('shifted');
+</script>
+</body>
+</html>
